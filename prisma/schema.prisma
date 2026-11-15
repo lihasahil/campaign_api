@@ -12,7 +12,7 @@ datasource db {
   provider = "postgresql"
 }
 
-enum CampaignStates{
+enum CampaignStatus {
   PENDING
   QUEUED
   PROCESSING
@@ -22,17 +22,101 @@ enum CampaignStates{
   CANCELLED
 }
 
-enum MessageStates{
+enum MessageStatus {
   PENDING
   PROCESSING
   SENT
   FAILED
 }
 
-model Campaign{
-  id          String @id @default(uuid())
-  name        String
-  status      CampaignStates
-  scheduledAt DateTime
-  totalMessages
+enum NotificationType {
+  CAMPAIGN_CREATED
+  CAMPAIGN_SCHEDULED
+  CAMPAIGN_STARTED
+  CAMPAIGN_COMPLETED
+  CAMPAIGN_FAILED
 }
+
+enum NotificationStatus {
+  UNREAD
+  READ
+}
+
+model Campaign {
+  id             String         @id @default(uuid())
+  name           String
+  status         CampaignStatus @default(PENDING)
+  scheduledAt    DateTime?
+  totalMessages  Int            @default(0)
+
+  organizationId String
+
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  messages       Message[]
+  recipients     CampaignRecipient[]
+  notifications  Notification[]
+
+  @@index([organizationId])
+  @@index([organizationId, status])
+  @@index([scheduledAt])
+}
+
+model Message {
+  id                String        @id @default(uuid())
+
+  campaignId        String
+  recipient         String
+  content           String
+
+  status            MessageStatus @default(PENDING)
+  attempts          Int           @default(0)
+
+  providerReference String?       @unique
+  sentAt            DateTime?
+
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+
+  campaign          Campaign      @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
+  @@index([campaignId])
+  @@index([campaignId, status])
+  @@index([recipient])
+}
+
+model CampaignRecipient {
+  id          String   @id @default(uuid())
+
+  campaignId  String
+  phoneNumber String
+
+  createdAt   DateTime @default(now())
+
+  campaign    Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
+  @@unique([campaignId, phoneNumber])
+  @@index([campaignId])
+}
+
+model Notification {
+  id             String             @id @default(uuid())
+
+  organizationId String
+  campaignId     String?
+
+  type           NotificationType
+  message        String
+  status         NotificationStatus @default(UNREAD)
+
+  createdAt      DateTime           @default(now())
+
+  campaign       Campaign?          @relation(fields: [campaignId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId])
+  @@index([organizationId, status])
+  @@index([campaignId])
+}
+
+

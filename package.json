@@ -2,16 +2,32 @@
   "devDependencies": {
     "@types/express": "^5.0.6",
     "@types/node": "^26.6.6",
+    "@types/pg": "^8.23.1",
     "prisma": "^7.10.1",
     "tsx": "^4.23.15",
     "typescript": "^7.0.2"
   },
   "dependencies": {
+    "@prisma/adapter-pg": "^7.10.1",
     "@prisma/client": "^7.10.1",
     "bullmq": "^6.7.0",
     "dotenv": "^18.0.9",
     "express": "^5.3.0",
     "ioredis": "^6.0.0",
+    "pg": "^8.23.1",
+    "pino": "^10.4.0",
     "zod": "^4.6.7"
+  },
+  "name": "nest-campaign",
+  "private": true,
+  "scripts": {
+    "dev": "tsx watch src/server.ts",
+    "start": "tsx src/server.ts",
+    "worker": "tsx src/workers/index.ts",
+    "worker:dev": "tsx watch src/workers/index.ts",
+    "typecheck": "tsc --noEmit",
+    "prisma:generate": "prisma generate --config prisma7.config.ts",
+    "prisma:migrate": "prisma migrate deploy --config prisma7.config.ts",
+    "test:acceptance": "tsx tests/acceptance.ts"
   }
 }
