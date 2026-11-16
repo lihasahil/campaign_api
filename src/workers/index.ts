@@ -1,9 +1,9 @@
-import { createCampaignWorker } from "./campaign.worker";
-import { createMessageWorker } from "./message.worker";
-import { createNotificationWorker } from "./notification.worker";
-import { closeQueues } from "../queues";
-import { prisma } from "../../config/prisma";
-import { logger } from "../../utils/logger";
+import { createCampaignWorker } from './campaign.worker';
+import { createMessageWorker } from './message.worker';
+import { createNotificationWorker } from './notification.worker';
+import { closeQueues } from '../queues';
+import { prisma } from '../../config/prisma';
+import { logger } from '../../utils/logger';
 
 // Worker process entrypoint: `npm run worker`. Runs independently of the API process.
 const workers = [
@@ -11,19 +11,19 @@ const workers = [
   createMessageWorker(),
   createNotificationWorker(),
 ];
-logger.info("workers started: campaign, message, notification");
+logger.info('workers started: campaign, message, notification');
 
 let closing = false;
 async function shutdown(signal: string) {
   if (closing) return;
   closing = true;
-  logger.info({ signal }, "graceful shutdown: letting active jobs finish");
+  logger.info({ signal }, 'graceful shutdown: letting active jobs finish');
   // close() stops taking new jobs and waits for in-flight ones. Anything unfinished is recovered via stalled-job handling.
-  await Promise.all(workers.map((w) => w.close()));
+  await Promise.all(workers.map(w => w.close()));
   await closeQueues();
   await prisma.$disconnect();
-  logger.info("shutdown complete");
+  logger.info('shutdown complete');
   process.exit(0);
 }
-process.on("SIGTERM", () => void shutdown("SIGTERM"));
-process.on("SIGINT", () => void shutdown("SIGINT"));
+process.on('SIGTERM', () => void shutdown('SIGTERM'));
+process.on('SIGINT', () => void shutdown('SIGINT'));

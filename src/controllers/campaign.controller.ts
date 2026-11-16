@@ -1,13 +1,13 @@
-import type { Request, Response } from "express";
-import { campaignService } from "../services/campaign.service";
-import { messageService } from "../services/message.service";
-import { orgOf } from "../middleware/auth";
+import type { Request, Response } from 'express';
+import { campaignService } from '../services/campaign.service';
+import { messageService } from '../services/message.service';
+import { orgOf } from '../middleware/auth';
 import {
   createCampaignSchema,
   idParamSchema,
   listCampaignsQuerySchema,
   listMessagesQuerySchema,
-} from "../validators/campaign.validator";
+} from '../validators/campaign.validator';
 
 // Controllers only parse/validate the request and shape the response. Rules live in the service.
 // Express 5 forwards rejected promises to the error middleware, so no try/catch is needed.
@@ -18,7 +18,7 @@ export const campaignController = {
     const r = await campaignService.create(
       orgOf(req),
       createCampaignSchema.parse(req.body),
-      req.header("Idempotency-Key") ?? undefined,
+      req.header('Idempotency-Key') ?? undefined
     );
     res.status(r.duplicate ? 200 : 202).json(r); // 202: accepted, processing continues in the background
   },
@@ -26,8 +26,8 @@ export const campaignController = {
     res.json(
       await campaignService.list(
         orgOf(req),
-        listCampaignsQuerySchema.parse(req.query),
-      ),
+        listCampaignsQuerySchema.parse(req.query)
+      )
     );
   },
   async get(req: Request, res: Response) {
@@ -52,7 +52,7 @@ export const campaignController = {
     const q = listMessagesQuerySchema.parse(req.query);
     await campaignService.assertOwned(id(req), orgOf(req));
     res.json(
-      await messageService.listForCampaign(id(req), q.status, q.page, q.limit),
+      await messageService.listForCampaign(id(req), q.status, q.page, q.limit)
     );
   },
 };

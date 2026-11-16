@@ -1,5 +1,5 @@
-import { prisma } from "../../config/prisma";
-import { NotificationType } from "../../generated/prisma/client";
+import { prisma } from '../../config/prisma';
+import { NotificationType } from '../../generated/prisma/client';
 
 export const notificationRepository = {
   create: (data: {
@@ -23,7 +23,7 @@ export const notificationRepository = {
   list: (organizationId?: string, campaignId?: string) =>
     prisma.notification.findMany({
       where: { organizationId, campaignId },
-      orderBy: { createdAt: "desc" },
+      orderBy: { createdAt: 'desc' },
       take: 100,
     }),
 };

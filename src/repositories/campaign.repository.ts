@@ -1,9 +1,9 @@
-import { prisma } from "../../config/prisma";
-import { CampaignStatus, Prisma } from "../../generated/prisma/client";
+import { prisma } from '../../config/prisma';
+import { CampaignStatus, Prisma } from '../../generated/prisma/client';
 
 const chunk = <T>(a: T[], n: number) =>
   Array.from({ length: Math.ceil(a.length / n) }, (_, i) =>
-    a.slice(i * n, i * n + n),
+    a.slice(i * n, i * n + n)
   );
 
 export const campaignRepository = {
@@ -18,7 +18,7 @@ export const campaignRepository = {
     recipients: string[];
   }) {
     return prisma.$transaction(
-      async (tx) => {
+      async tx => {
         const c = await tx.campaign.create({
           data: {
             name: d.name,
@@ -29,13 +29,13 @@ export const campaignRepository = {
         });
         for (const part of chunk(d.recipients, 2000)) {
           await tx.campaignRecipient.createMany({
-            data: part.map((phoneNumber) => ({
+            data: part.map(phoneNumber => ({
               campaignId: c.id,
               phoneNumber,
             })),
           });
           await tx.message.createMany({
-            data: part.map((recipient) => ({
+            data: part.map(recipient => ({
               campaignId: c.id,
               recipient,
               content: d.content,
@@ -44,7 +44,7 @@ export const campaignRepository = {
         }
         return c;
       },
-      { timeout: 60000 },
+      { timeout: 60000 }
     );
   },
 
@@ -52,7 +52,7 @@ export const campaignRepository = {
   async transition(
     id: string,
     from: CampaignStatus[],
-    to: CampaignStatus,
+    to: CampaignStatus
   ): Promise<boolean> {
     const r = await prisma.campaign.updateMany({
       where: { id, status: { in: from } },
@@ -73,14 +73,14 @@ export const campaignRepository = {
     const where: Prisma.CampaignWhereInput = {
       status: f.status,
       organizationId: f.organizationId,
-      name: f.search ? { contains: f.search, mode: "insensitive" } : undefined,
+      name: f.search ? { contains: f.search, mode: 'insensitive' } : undefined,
       createdAt: f.from || f.to ? { gte: f.from, lte: f.to } : undefined,
     };
     const [total, data] = await Promise.all([
       prisma.campaign.count({ where }),
       prisma.campaign.findMany({
         where,
-        orderBy: { createdAt: "desc" },
+        orderBy: { createdAt: 'desc' },
         skip: (f.page - 1) * f.limit,
         take: f.limit,
       }),

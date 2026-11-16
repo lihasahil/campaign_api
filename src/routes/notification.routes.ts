@@ -1,5 +1,5 @@
-import { Router } from "express";
-import { notificationController } from "../controllers/notification.controller";
+import { Router } from 'express';
+import { notificationController } from '../controllers/notification.controller';
 
 export const notificationRoutes = Router();
-notificationRoutes.get("/", notificationController.list);
+notificationRoutes.get('/', notificationController.list);

@@ -1,5 +1,5 @@
-import { prisma } from "../../config/prisma";
-import { MessageStatus } from "../../generated/prisma/client";
+import { prisma } from '../../config/prisma';
+import { MessageStatus } from '../../generated/prisma/client';
 
 const S = MessageStatus;
 
@@ -15,7 +15,7 @@ export const messageRepository = {
   pendingBatch: (campaignId: string, afterId: string, take: number) =>
     prisma.message.findMany({
       where: { campaignId, status: S.PENDING, id: { gt: afterId } },
-      orderBy: { id: "asc" },
+      orderBy: { id: 'asc' },
       take,
       select: { id: true, recipient: true, content: true },
     }),
@@ -48,7 +48,7 @@ export const messageRepository = {
   // GROUP BY on the source of truth, never incremented counters, so concurrent workers cannot overwrite each other.
   async countsByStatus(campaignId: string) {
     const rows = await prisma.message.groupBy({
-      by: ["status"],
+      by: ['status'],
       where: { campaignId },
       _count: { _all: true },
     });
@@ -66,14 +66,14 @@ export const messageRepository = {
     campaignId: string,
     status: MessageStatus | undefined,
     page: number,
-    limit: number,
+    limit: number
   ) {
     const where = { campaignId, status };
     const [total, data] = await Promise.all([
       prisma.message.count({ where }),
       prisma.message.findMany({
         where,
-        orderBy: { id: "asc" },
+        orderBy: { id: 'asc' },
         skip: (page - 1) * limit,
         take: limit,
         select: {

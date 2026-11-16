@@ -1,7 +1,7 @@
-import { campaignQueue, messageQueue, notificationQueue } from "./index";
-import { redis } from "../../config/redis-client";
-import type { MessageJob } from "../types/jobs";
-import { logger } from "../../utils/logger";
+import { campaignQueue, messageQueue, notificationQueue } from './index';
+import { redis } from '../../config/redis-client';
+import type { MessageJob } from '../types/jobs';
+import { logger } from '../../utils/logger';
 
 // All job creation lives here. Deterministic jobIds are the first layer of duplicate prevention:
 // BullMQ ignores add() when the jobId already exists. (Second layer: atomic claim in the message worker.)
@@ -29,21 +29,21 @@ export async function addCampaignJob(
   campaignId: string,
   organizationId: string,
   total: number,
-  opts: { epoch?: number; delayMs?: number } = {},
+  opts: { epoch?: number; delayMs?: number } = {}
 ) {
   const epoch = opts.epoch ?? 0;
   const job = await campaignQueue.add(
-    "expand-campaign",
+    'expand-campaign',
     { campaignId, organizationId, epoch },
     {
       jobId: campaignJobId(campaignId, epoch),
       delay: opts.delayMs && opts.delayMs > 0 ? opts.delayMs : undefined,
       priority: priorityFor(total),
-    },
+    }
   );
   logger.info(
     { campaignId, jobId: job.id, delayMs: opts.delayMs ?? 0 },
-    "campaign job enqueued",
+    'campaign job enqueued'
   );
   return job;
 }
@@ -58,26 +58,26 @@ export async function promoteCampaignJob(campaignId: string, epoch = 0) {
 export const addMessageJobs = (
   batch: MessageJob[],
   epoch: number,
-  total: number,
+  total: number
 ) => {
   const priority = priorityFor(total);
   return messageQueue.addBulk(
-    batch.map((data) => ({
-      name: "send-message",
+    batch.map(data => ({
+      name: 'send-message',
       data,
       opts: { jobId: messageJobId(data.messageId, epoch), priority },
-    })),
+    }))
   );
 };
 
 export const addNotificationJob = (
   campaignId: string,
-  organizationId: string,
+  organizationId: string
 ) =>
   notificationQueue.add(
-    "campaign-finished",
+    'campaign-finished',
     { campaignId, organizationId },
-    { jobId: notificationJobId(campaignId) },
+    { jobId: notificationJobId(campaignId) }
   );
 
 export const getMessageJob = async (messageId: string, epoch: number) =>
@@ -87,26 +87,26 @@ export const getMessageJob = async (messageId: string, epoch: number) =>
 // campaign status before sending, so this only keeps the queue tidy.
 export async function purgeCampaignJobs(campaignId: string, cap = 50000) {
   const queued = await campaignQueue.getJobs([
-    "delayed",
-    "waiting",
-    "prioritized",
+    'delayed',
+    'waiting',
+    'prioritized',
   ]);
   await Promise.all(
     queued
-      .filter((j) => j.data.campaignId === campaignId)
-      .map((j) => j.remove().catch(() => undefined)),
+      .filter(j => j.data.campaignId === campaignId)
+      .map(j => j.remove().catch(() => undefined))
   );
   let removed = 0;
   for (let start = 0; start < cap; start += 1000) {
     const jobs = await messageQueue.getJobs(
-      ["waiting", "prioritized", "delayed"],
+      ['waiting', 'prioritized', 'delayed'],
       start,
-      start + 999,
+      start + 999
     );
     if (!jobs.length) break;
-    const mine = jobs.filter((j) => j.data.campaignId === campaignId);
-    await Promise.all(mine.map((j) => j.remove().catch(() => undefined)));
+    const mine = jobs.filter(j => j.data.campaignId === campaignId);
+    await Promise.all(mine.map(j => j.remove().catch(() => undefined)));
     removed += mine.length;
   }
-  logger.info({ campaignId, removed }, "purged queued jobs");
+  logger.info({ campaignId, removed }, 'purged queued jobs');
 }
