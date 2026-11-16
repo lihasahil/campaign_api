@@ -1,18 +1,17 @@
 import { Worker, type Job } from "bullmq";
-import { prisma } from "../../config/prisma";
 import { env } from "../../config/env";
 import { redisConnection } from "../../config/redis";
-import { CAMPAIGN_QUEUE } from "../queues/campaign/campaign.queue";
-import { campaignRepository as repo } from "../repositiories/campaign.repository";
+import { QUEUE_NAMES } from "../queues";
+import { addMessageJobs } from "../queues/producer";
+import { campaignRepository } from "../repositories/campaign.repository";
+import { messageRepository } from "../repositories/message.repository";
 import {
   CampaignStatus,
-  MessageStatus,
   NotificationType,
 } from "../../generated/prisma/client";
-import { enqueueMessages } from "../jobs/enqueue";
-import { maybeCompleteCampaign } from "../modules/campaign/campaign.progress";
-import { notificationService } from "../modules/notification/notification.service";
-import type { CampaignJob } from "../jobs/types";
+import { maybeCompleteCampaign } from "../services/campaign-progress.service";
+import { notificationService } from "../services/notification.service";
+import type { CampaignJob } from "../types/jobs";
 import { logger } from "../../utils/logger";
 
 // Expands one campaign into one message job per PENDING message, in batches.
@@ -21,11 +20,11 @@ import { logger } from "../../utils/logger";
 async function processCampaign(job: Job<CampaignJob>) {
   const { campaignId, epoch } = job.data;
   const log = logger.child({ queue: "campaign", jobId: job.id, campaignId });
-  const campaign = await repo.findById(campaignId);
+  const campaign = await campaignRepository.findById(campaignId);
   if (!campaign) return { skipped: "not_found" };
   if (campaign.status === CampaignStatus.QUEUED) {
     if (
-      await repo.transition(
+      await campaignRepository.transition(
         campaignId,
         [CampaignStatus.QUEUED],
         CampaignStatus.PROCESSING,
@@ -46,19 +45,18 @@ async function processCampaign(job: Job<CampaignJob>) {
   let lastId = "";
   let enqueued = 0;
   for (;;) {
-    const status = (await repo.findById(campaignId))?.status;
+    const status = (await campaignRepository.findById(campaignId))?.status;
     if (status !== CampaignStatus.PROCESSING) {
       log.info({ status, enqueued }, "expansion stopped (paused/cancelled)");
       return { stopped: status, enqueued };
     }
-    const batch = await prisma.message.findMany({
-      where: { campaignId, status: MessageStatus.PENDING, id: { gt: lastId } },
-      orderBy: { id: "asc" },
-      take: env.EXPAND_BATCH_SIZE,
-      select: { id: true, recipient: true, content: true },
-    });
+    const batch = await messageRepository.pendingBatch(
+      campaignId,
+      lastId,
+      env.EXPAND_BATCH_SIZE,
+    );
     if (!batch.length) break;
-    await enqueueMessages(
+    await addMessageJobs(
       batch.map((m) => ({
         campaignId,
         messageId: m.id,
@@ -79,11 +77,15 @@ async function processCampaign(job: Job<CampaignJob>) {
 }
 
 export function createCampaignWorker() {
-  const worker = new Worker<CampaignJob>(CAMPAIGN_QUEUE, processCampaign, {
-    connection: redisConnection,
-    concurrency: env.CAMPAIGN_CONCURRENCY,
-    stalledInterval: env.STALLED_INTERVAL_MS,
-  });
+  const worker = new Worker<CampaignJob>(
+    QUEUE_NAMES.campaign,
+    processCampaign,
+    {
+      connection: redisConnection,
+      concurrency: env.CAMPAIGN_CONCURRENCY,
+      stalledInterval: env.STALLED_INTERVAL_MS,
+    },
+  );
   worker.on("error", (err) =>
     logger.error({ err, queue: "campaign" }, "worker error"),
   );
@@ -103,7 +105,7 @@ export function createCampaignWorker() {
     // Retries exhausted while expanding: mark FAILED so the campaign is not left in limbo.
     if (job && job.attemptsMade >= (job.opts.attempts ?? 1)) {
       if (
-        await repo.transition(
+        await campaignRepository.transition(
           job.data.campaignId,
           [CampaignStatus.QUEUED, CampaignStatus.PROCESSING],
           CampaignStatus.FAILED,

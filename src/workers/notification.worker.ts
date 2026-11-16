@@ -1,14 +1,14 @@
 import { Worker } from "bullmq";
 import { env } from "../../config/env";
 import { redisConnection } from "../../config/redis";
-import { NOTIFICATION_QUEUE } from "../queues/notification/notification.queue";
-import { notificationService } from "../modules/notification/notification.service";
-import type { NotificationJob } from "../jobs/types";
+import { QUEUE_NAMES } from "../queues";
+import { notificationService } from "../services/notification.service";
+import type { NotificationJob } from "../types/jobs";
 import { logger } from "../../utils/logger";
 
 export function createNotificationWorker() {
   const worker = new Worker<NotificationJob>(
-    NOTIFICATION_QUEUE,
+    QUEUE_NAMES.notification,
     async (job) => {
       const n = await notificationService.createCampaignSummary(
         job.data.campaignId,

@@ -1,9 +1,7 @@
 import { createCampaignWorker } from "./campaign.worker";
 import { createMessageWorker } from "./message.worker";
 import { createNotificationWorker } from "./notification.worker";
-import { campaignQueue } from "../queues/campaign/campaign.queue";
-import { messageQueue } from "../queues/message/message.queue";
-import { notificationQueue } from "../queues/notification/notification.queue";
+import { closeQueues } from "../queues";
 import { prisma } from "../../config/prisma";
 import { logger } from "../../utils/logger";
 
@@ -22,9 +20,7 @@ async function shutdown(signal: string) {
   logger.info({ signal }, "graceful shutdown: letting active jobs finish");
   // close() stops taking new jobs and waits for in-flight ones. Anything unfinished is recovered via stalled-job handling.
   await Promise.all(workers.map((w) => w.close()));
-  await Promise.all(
-    [campaignQueue, messageQueue, notificationQueue].map((q) => q.close()),
-  );
+  await closeQueues();
   await prisma.$disconnect();
   logger.info("shutdown complete");
   process.exit(0);

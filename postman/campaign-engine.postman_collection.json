@@ -1,0 +1,410 @@
+{
+  "info": {
+    "name": "Smart Notification & Campaign Processing Engine",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "description": "Run Register (or Login) first: it stores {{token}} and {{orgId}}. All other requests send the JWT as a Bearer token; campaigns are created under the orgId inside the token.\nVariables: baseUrl, campaignId, messageId. Special mock recipients: ...8888 fails twice then succeeds, ...9999 always fails, ...7777 provider accepts then worker 'crashes' once."
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8000"
+    },
+    {
+      "key": "campaignId",
+      "value": ""
+    },
+    {
+      "key": "messageId",
+      "value": ""
+    },
+    {
+      "key": "token",
+      "value": ""
+    },
+    {
+      "key": "orgId",
+      "value": ""
+    }
+  ],
+  "item": [
+    {
+      "name": "Health",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/health",
+        "auth": {
+          "type": "noauth"
+        }
+      }
+    },
+    {
+      "name": "Register organization (creates orgId + JWT)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const j=pm.response.json();pm.collectionVariables.set(\"token\",j.token);pm.collectionVariables.set(\"orgId\",j.organization.orgId);"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "auth": {
+          "type": "noauth"
+        },
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/api/auth/register",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"Acme Corp\",\n  \"email\": \"acme@example.com\",\n  \"password\": \"Passw0rd!123\"\n}"
+        }
+      }
+    },
+    {
+      "name": "Login",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const j=pm.response.json();pm.collectionVariables.set(\"token\",j.token);pm.collectionVariables.set(\"orgId\",j.organization.orgId);"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "auth": {
+          "type": "noauth"
+        },
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/api/auth/login",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"acme@example.com\",\n  \"password\": \"Passw0rd!123\"\n}"
+        }
+      }
+    },
+    {
+      "name": "Who am I (GET /auth/me)",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{baseUrl}}/api/auth/me"
+      }
+    },
+    {
+      "name": "Create campaign (auto-start)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const j=pm.response.json();",
+              "if(j.campaign&&j.campaign.id)pm.collectionVariables.set(\"campaignId\",j.campaign.id);"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Idempotency-Key",
+            "value": "{{$guid}}"
+          }
+        ],
+        "url": "{{baseUrl}}/api/campaigns",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"Black Friday\",\n  \"content\": \"Hi! 20% off today.\",\n  \"recipients\": [\n    \"+15551000000\",\n    \"+15551000001\",\n    \"+15551000002\",\n    \"+15551000003\",\n    \"+15551000004\"\n  ]\n}"
+        }
+      }
+    },
+    {
+      "name": "Create campaign (retry demo: ...8888 flaky, ...9999 fails, bad number)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const j=pm.response.json();",
+              "if(j.campaign&&j.campaign.id)pm.collectionVariables.set(\"campaignId\",j.campaign.id);"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/api/campaigns",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"Failure demo\",\n  \"content\": \"test\",\n  \"recipients\": [\n    \"+15550008888\",\n    \"+15550009999\",\n    \"+15550007777\",\n    \"not-a-number\",\n    \"+15551230000\"\n  ]\n}"
+        }
+      }
+    },
+    {
+      "name": "Create campaign (draft, start later)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const j=pm.response.json();",
+              "if(j.campaign&&j.campaign.id)pm.collectionVariables.set(\"campaignId\",j.campaign.id);"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/api/campaigns",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"Draft\",\n  \"content\": \"hello\",\n  \"recipients\": [\n    \"+15551000000\",\n    \"+15551000001\",\n    \"+15551000002\",\n    \"+15551000003\",\n    \"+15551000004\"\n  ],\n  \"autoStart\": false\n}"
+        }
+      }
+    },
+    {
+      "name": "Create campaign (scheduled +60s)",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.collectionVariables.set(\"scheduledAt\", new Date(Date.now()+60000).toISOString());"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const j=pm.response.json();",
+              "if(j.campaign&&j.campaign.id)pm.collectionVariables.set(\"campaignId\",j.campaign.id);"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/api/campaigns",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"Scheduled\",\n  \"content\": \"later\",\n  \"recipients\": [\n    \"+15551000000\",\n    \"+15551000001\",\n    \"+15551000002\",\n    \"+15551000003\",\n    \"+15551000004\"\n  ],\n  \"scheduledAt\": \"{{scheduledAt}}\"\n}"
+        }
+      }
+    },
+    {
+      "name": "List campaigns (filters + pagination)",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/api/campaigns?page=1&limit=10&status=COMPLETED&search=black"
+      }
+    },
+    {
+      "name": "Campaign details",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/api/campaigns/{{campaignId}}"
+      }
+    },
+    {
+      "name": "Start campaign",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/api/campaigns/{{campaignId}}/start"
+      }
+    },
+    {
+      "name": "Pause campaign",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/api/campaigns/{{campaignId}}/pause"
+      }
+    },
+    {
+      "name": "Resume campaign",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/api/campaigns/{{campaignId}}/resume"
+      }
+    },
+    {
+      "name": "Cancel campaign",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/api/campaigns/{{campaignId}}/cancel"
+      }
+    },
+    {
+      "name": "Campaign progress",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/api/campaigns/{{campaignId}}/progress"
+      }
+    },
+    {
+      "name": "Campaign messages",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const j=pm.response.json();if(j.data&&j.data[0])pm.collectionVariables.set(\"messageId\",j.data[0].id);"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/api/campaigns/{{campaignId}}/messages?limit=20"
+      }
+    },
+    {
+      "name": "Message details",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/api/messages/{{messageId}}"
+      }
+    },
+    {
+      "name": "Queue stats",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/api/queues/stats"
+      }
+    },
+    {
+      "name": "Notifications",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/api/notifications"
+      }
+    }
+  ],
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{token}}",
+        "type": "string"
+      }
+    ]
+  }
+}

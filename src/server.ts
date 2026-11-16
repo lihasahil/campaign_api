@@ -1,8 +1,6 @@
 import { app } from "./app";
 import { config } from "../config";
-import { campaignQueue } from "./queues/campaign/campaign.queue";
-import { messageQueue } from "./queues/message/message.queue";
-import { notificationQueue } from "./queues/notification/notification.queue";
+import { closeQueues } from "./queues";
 import { prisma } from "../config/prisma";
 import { logger } from "../utils/logger";
 
@@ -15,9 +13,7 @@ async function main() {
   const shutdown = async (signal: string) => {
     logger.info({ signal }, "api shutting down");
     server.close();
-    await Promise.all(
-      [campaignQueue, messageQueue, notificationQueue].map((q) => q.close()),
-    );
+    await closeQueues();
     await prisma.$disconnect();
     process.exit(0);
   };

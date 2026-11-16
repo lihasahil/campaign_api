@@ -4,6 +4,8 @@ import { z } from "zod";
 // Tunables for Redis, workers, retries and the mock provider. DATABASE_URL/PORT stay in ../../config.
 const schema = z.object({
   REDIS_URL: z.string().default("redis://localhost:6379"),
+  JWT_SECRET: z.string().min(16, "JWT_SECRET must be at least 16 characters"),
+  JWT_EXPIRES_IN: z.string().default("1h"),
   LOG_LEVEL: z.string().default("info"),
   CAMPAIGN_CONCURRENCY: z.coerce.number().int().positive().default(2),
   MESSAGE_CONCURRENCY: z.coerce.number().int().positive().default(10),

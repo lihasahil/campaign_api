@@ -50,6 +50,7 @@ model Campaign {
   totalMessages  Int            @default(0)
 
   organizationId String
+  organization   Organization   @relation(fields: [organizationId], references: [orgId])
 
   createdAt      DateTime       @default(now())
   updatedAt      DateTime       @updatedAt
@@ -120,3 +121,14 @@ model Notification {
 }
 
 
+model Organization {
+  id           String   @id @default(uuid())
+  orgId        String   @unique
+  name         String
+  email        String   @unique
+  passwordHash String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  campaigns    Campaign[]
+}
