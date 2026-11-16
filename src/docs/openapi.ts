@@ -29,7 +29,7 @@ const idParam = {
   required: true,
   schema: { type: "string", format: "uuid" },
 };
-const secured = [{ bearerAuth: [] }];
+const secured = [{ cookieAuth: [] }];
 const campaignAction = (
   summary: string,
   description: string,
@@ -57,8 +57,8 @@ export const openApiSpec = {
     version: "1.0.0",
     description:
       "Bulk SMS campaigns processed asynchronously with BullMQ (SMS delivery is mocked).\n\n" +
-      "**How to use:** call `POST /api/auth/register`, copy the `token` from the response, click **Authorize** and paste it (without `Bearer`). " +
-      "Campaigns are created under the `orgId` inside your token.\n\n" +
+      "**How to use:** call `POST /api/auth/register` or `POST /api/auth/login`. " +
+      "The server sets HttpOnly `accessToken` and `refreshToken` cookies; call `POST /api/auth/refresh` when the access token expires.\n\n" +
       "**Mock recipients for demos:** `...8888` fails twice then succeeds, `...9999` always fails, `...7777` provider accepts then the worker 'crashes' once, malformed numbers fail permanently.",
   },
   servers: [{ url: "/", description: "This server" }],
@@ -72,7 +72,7 @@ export const openApiSpec = {
   ],
   components: {
     securitySchemes: {
-      bearerAuth: { type: "http", scheme: "bearer", bearerFormat: "JWT" },
+      cookieAuth: { type: "apiKey", in: "cookie", name: "accessToken" },
     },
     schemas: {
       Error: {
@@ -117,9 +117,8 @@ export const openApiSpec = {
       AuthSession: {
         type: "object",
         properties: {
-          token: { type: "string" },
-          tokenType: { type: "string", example: "Bearer" },
-          expiresIn: { type: "string", example: "1h" },
+          accessTokenExpiresIn: { type: "string", example: "15m" },
+          refreshTokenExpiresIn: { type: "string", example: "7d" },
           organization: ref("Organization"),
         },
       },
@@ -327,7 +326,7 @@ export const openApiSpec = {
         tags: ["Auth"],
         summary: "Register an organization (client)",
         description:
-          "Creates the organization with a unique generated `orgId` and returns a JWT.",
+          "Creates the organization with a unique generated `orgId` and sets HttpOnly authentication cookies.",
         requestBody: { required: true, content: json(ref("RegisterRequest")) },
         responses: {
           "201": res("Created", ref("AuthSession")),
@@ -344,6 +343,30 @@ export const openApiSpec = {
           "200": res("OK", ref("AuthSession")),
           ...errors(400, 401),
         },
+      },
+    },
+    "/api/auth/refresh": {
+      post: {
+        tags: ["Auth"],
+        summary: "Refresh the access token",
+        description:
+          "Uses the HttpOnly refresh cookie and sets a new access cookie.",
+        responses: {
+          "200": res("OK", {
+            type: "object",
+            properties: {
+              accessTokenExpiresIn: { type: "number", example: 900000 },
+            },
+          }),
+          ...errors(401),
+        },
+      },
+    },
+    "/api/auth/logout": {
+      post: {
+        tags: ["Auth"],
+        summary: "Log out",
+        responses: { "204": { description: "Authentication cookies cleared" } },
       },
     },
     "/api/auth/me": {

@@ -3,9 +3,18 @@ import { verifyToken } from "../services/auth.service";
 import { AppError } from "../../utils/errors";
 
 export function requireAuth(req: Request, _res: Response, next: NextFunction) {
-  const [scheme, token] = (req.header("authorization") ?? "").split(" ");
-  if (scheme?.toLowerCase() !== "bearer" || !token)
-    return next(new AppError(401, "Missing bearer token", "UNAUTHORIZED"));
+  const cookies = Object.fromEntries(
+    (req.header("cookie") ?? "")
+      .split(";")
+      .map((part) => part.trim().split("="))
+      .filter(([name, value]) => name && value)
+      .map(([name, ...value]) => [name, value.join("=")]),
+  );
+  const token = cookies.accessToken;
+  if (!token)
+    return next(
+      new AppError(401, "Missing access token cookie", "UNAUTHORIZED"),
+    );
   try {
     req.auth = verifyToken(token);
     next();

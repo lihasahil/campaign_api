@@ -5,7 +5,9 @@ import { z } from "zod";
 const schema = z.object({
   REDIS_URL: z.string().default("redis://localhost:6379"),
   JWT_SECRET: z.string().min(16, "JWT_SECRET must be at least 16 characters"),
-  JWT_EXPIRES_IN: z.string().default("1h"),
+  ACCESS_TOKEN_EXPIRES_IN: z.string().default("15m"),
+  REFRESH_TOKEN_EXPIRES_IN: z.string().default("7d"),
+  NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
   LOG_LEVEL: z.string().default("info"),
   CAMPAIGN_CONCURRENCY: z.coerce.number().int().positive().default(2),
   MESSAGE_CONCURRENCY: z.coerce.number().int().positive().default(10),

@@ -2,7 +2,7 @@
   "info": {
     "name": "Smart Notification & Campaign Processing Engine",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
-    "description": "Run Register (or Login) first: it stores {{token}} and {{orgId}}. All other requests send the JWT as a Bearer token; campaigns are created under the orgId inside the token.\nVariables: baseUrl, campaignId, messageId. Special mock recipients: ...8888 fails twice then succeeds, ...9999 always fails, ...7777 provider accepts then worker 'crashes' once."
+    "description": "Run Register (or Login) first. Postman stores the HttpOnly accessToken and refreshToken cookies automatically; use Refresh access token when the access token expires. All authenticated requests use the cookie jar, and campaigns are created under the orgId inside the access token.\nVariables: baseUrl, campaignId, messageId, orgId. Special mock recipients: ...8888 fails twice then succeeds, ...9999 always fails, ...7777 provider accepts then worker 'crashes' once."
   },
   "variable": [
     {
@@ -15,10 +15,6 @@
     },
     {
       "key": "messageId",
-      "value": ""
-    },
-    {
-      "key": "token",
       "value": ""
     },
     {
@@ -44,14 +40,14 @@
       }
     },
     {
-      "name": "Register organization (creates orgId + JWT)",
+      "name": "Register organization (sets auth cookies)",
       "event": [
         {
           "listen": "test",
           "script": {
             "type": "text/javascript",
             "exec": [
-              "const j=pm.response.json();pm.collectionVariables.set(\"token\",j.token);pm.collectionVariables.set(\"orgId\",j.organization.orgId);"
+              "const j=pm.response.json();pm.collectionVariables.set(\"orgId\",j.organization.orgId);"
             ]
           }
         }
@@ -82,7 +78,7 @@
           "script": {
             "type": "text/javascript",
             "exec": [
-              "const j=pm.response.json();pm.collectionVariables.set(\"token\",j.token);pm.collectionVariables.set(\"orgId\",j.organization.orgId);"
+              "const j=pm.response.json();pm.collectionVariables.set(\"orgId\",j.organization.orgId);"
             ]
           }
         }
@@ -113,6 +109,28 @@
         "url": "{{baseUrl}}/api/auth/me"
       }
     },
+    {
+        "name": "Refresh access token",
+        "request": {
+          "auth": {
+            "type": "noauth"
+          },
+          "method": "POST",
+          "header": [],
+          "url": "{{baseUrl}}/api/auth/refresh"
+        }
+    },
+    {
+        "name": "Logout",
+        "request": {
+          "auth": {
+            "type": "noauth"
+          },
+          "method": "POST",
+          "header": [],
+          "url": "{{baseUrl}}/api/auth/logout"
+        }
+      },
     {
       "name": "Create campaign (auto-start)",
       "event": [
@@ -398,13 +416,6 @@
     }
   ],
   "auth": {
-    "type": "bearer",
-    "bearer": [
-      {
-        "key": "token",
-        "value": "{{token}}",
-        "type": "string"
-      }
-    ]
+    "type": "noauth"
   }
 }
