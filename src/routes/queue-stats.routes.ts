@@ -1,8 +1,6 @@
 import { Router } from 'express';
 import type { Queue } from 'bullmq';
-import { campaignQueue } from '../queues/campaign/campaign.queue';
-import { messageQueue } from '../queues/message/message.queue';
-import { notificationQueue } from '../queues/notification/notification.queue';
+import { campaignQueue, messageQueue, notificationQueue } from '../queues';
 
 export const queueRoutes = Router();
 
